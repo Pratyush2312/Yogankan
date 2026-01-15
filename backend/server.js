@@ -13,7 +13,7 @@ import cookieParser from "cookie-parser";
 const URL=process.env.FRONTEND_URL
 app.use(cookieParser());
 app.use(cors({
-  origin: URL, 
+  origin: true, 
   credentials: true
 }));
 dotenv.config()
