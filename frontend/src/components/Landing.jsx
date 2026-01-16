@@ -22,7 +22,7 @@ const Landing = () => {
                   rounded-3xl shadow-xl w-full max-w-xl text-center">
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-green-700 leading-tight">
-            Welcome to Yogankan
+            Welcome to Yogankan <p className='text-base italic text-green-600 font-sans'>Where Yoga Meets Precision</p>
           </h1>
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full justify-center">
@@ -47,7 +47,7 @@ const Landing = () => {
             </button>
           </div>
 
-          <p className="italic text-gray-600 text-sm sm:text-base md:text-lg">
+          <p className="italic font-sans text-gray-600 text-sm sm:text-base md:text-lg">
             Balance • Breathe • Perform
           </p>
         </div>
