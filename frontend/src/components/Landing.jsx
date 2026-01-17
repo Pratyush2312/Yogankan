@@ -1,7 +1,7 @@
 import PageWrapper from './PageWrapper';
 import { useNavigate } from 'react-router';
 import { MdOutlineOpenInNew } from "react-icons/md";
-
+import logo from "../assets/logo.png"
 const Landing = () => {
   const navigate = useNavigate();
 
@@ -21,7 +21,7 @@ const Landing = () => {
                   px-6 sm:px-10 md:px-16 py-8 sm:py-10 md:py-12 
                   rounded-3xl shadow-xl w-full max-w-xl text-center">
 
-          <img src="/src/assets/Yogankan_logo.png" alt="Yogankan Logo" className='w-20 h-20' />
+          <img src={logo} alt="Yogankan Logo" className='w-20 h-20' />
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-green-700 leading-tight">
             Welcome to Yogankan <p className='text-base italic text-green-600 font-sans'>Where Yoga Meets Precision</p>
           </h1>
