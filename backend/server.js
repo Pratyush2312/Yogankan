@@ -125,13 +125,14 @@ app.get("/results/:group/:studentId", authMiddleware, async (req, res) => {
     }
 
     const combinedTotal = entries.reduce((sum, entry) => sum + entry.finalTotal, 0);
-
+    const submittedCount = await Score.countDocuments({studentId})
     res.json({
       studentId,
       judgesCount: entries.length,
       judgeScores: entries,
       group,
       combinedTotal,
+      submittedCount
     });
 
   } catch (err) {

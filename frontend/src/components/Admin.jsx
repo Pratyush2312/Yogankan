@@ -91,7 +91,8 @@ const Admin = () => {
 
                 final.push({
                     studentId: sid,
-                    combinedTotal: data.combinedTotal
+                    combinedTotal: data.combinedTotal,
+                    submittedCount: data.submittedCount
                 });
             }
 
@@ -250,6 +251,7 @@ const Admin = () => {
                                             <th className="p-3">Rank</th>
                                             <th className="p-3">Student ID</th>
                                             <th className="p-3">Score</th>
+                                            <th className="p-3">Submitted Count</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -259,6 +261,7 @@ const Admin = () => {
                                                 <td className="p-3 font-semibold">#{index + 1}</td>
                                                 <td className="p-3">{s.studentId}</td>
                                                 <td className="p-3 font-bold text-green-700">{s.combinedTotal}</td>
+                                                <td className="p-3 font-bold text-green-700">{s.submittedCount}/5</td>
                                             </tr>
                                         ))}
                                     </tbody>
