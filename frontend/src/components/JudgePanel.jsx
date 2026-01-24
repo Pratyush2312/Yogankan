@@ -2,7 +2,7 @@ import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router'
 import PageWrapper from './PageWrapper'
-
+import Logout from './Logout';
 const URL = import.meta.env.VITE_BACKEND_URL
 const categories = [
     { key: "accuracy", label: "Accuracy & Alignment (20)" },
@@ -121,7 +121,7 @@ const JudgePanel = () => {
                 <h2 className="text-base sm:text-lg md:text-2xl font-bold text-[#4CAF50] mb-6 text-center sm:text-left">
                     Welcome Judge {judgeId}!
                 </h2>
-
+                <Logout/>
                 {/* STUDENT + GROUP */}
                 <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
                     <label className='font-semibold'>Group:</label>
