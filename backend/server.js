@@ -247,6 +247,14 @@ app.get("/students/:group", authMiddleware, async (req, res) => {
   }
 });
 
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    sameSite: "None",
+    secure: true
+  });
+  res.json({ status: "logged out" });
+});
+
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
