@@ -117,11 +117,12 @@ const JudgePanel = () => {
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#19e141] mb-2 p-2 sm:mb-4 text-center">
                     Judge Panel
                 </h1>
-
-                <h2 className="text-base sm:text-lg md:text-2xl font-bold text-[#4CAF50] mb-6 text-center sm:text-left">
-                    Welcome Judge {judgeId}!
-                </h2>
-                <Logout/>
+                <div className='flex justify-between items-center mb-4'>
+                    <h2 className="text-base sm:text-lg md:text-2xl font-bold text-[#4CAF50] mb-6 text-center sm:text-left">
+                        Welcome Judge {judgeId}!
+                    </h2>
+                    <Logout />
+                </div>
                 {/* STUDENT + GROUP */}
                 <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
                     <label className='font-semibold'>Group:</label>
