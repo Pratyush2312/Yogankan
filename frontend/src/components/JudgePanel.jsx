@@ -74,7 +74,7 @@ const JudgePanel = () => {
             })
 
 
-            updatedScores[poseIndex].drop = true
+            // updatedScores[poseIndex].drop = true
             setScores(updatedScores)
             toast.error(`Pose ${poseIndex + 1} marked as DROP. All scores set to 0`)
         }
