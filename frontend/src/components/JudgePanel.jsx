@@ -66,7 +66,7 @@ const JudgePanel = () => {
         if(checked){
             const updatedScores=[...scores]
             
-            Object.keys(updateScore[poseIndex]).forEach(k=>{
+            Object.keys(updatedScores[poseIndex]).forEach(k=>{
                
                 updatedScores[poseIndex][k]=0
             })
@@ -168,7 +168,7 @@ const JudgePanel = () => {
                     />
                     <input type="checkbox" checked={dropflag[poseIndex]} onChange={(e) => handleDrop(e.target.checked)} />
                     <label>Drop:</label>
-                    <p>{dropflag ? "Yes" : "No"}</p>
+                    <p>{dropflag[poseIndex] ? "Yes" : "No"}</p>
                 </div>
 
                 {/* CURRENT POSE */}
