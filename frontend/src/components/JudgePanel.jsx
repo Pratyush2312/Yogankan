@@ -86,7 +86,7 @@ const JudgePanel = () => {
       poseScores: scores.map((pose, i) => ({
         ...pose,
         drop: dropflag[i],
-        total: dropflag[i] ? 0 : getPoseTotal(i)
+        // total: dropflag[i] ? 0 : getPoseTotal(i)
       }))
     };
 
