@@ -16,7 +16,6 @@ const categories = [
     { key: "yogicComposure", label: "Yogic Composure (10)" },
     { key: "dressCode", label: "Discipline & Dress Code (5)" },
     { key: "overallPerformance", label: "Overall Performance (10)" },
-    { key: "drop", label: "DROP"}
 ]
 
 const TOTAL_POSES = 5
@@ -43,8 +42,11 @@ const JudgePanel = () => {
     }
 
     const getPoseTotal = (index) => {
-        return Object.values(scores[index]).reduce((sum, v) => sum + (Number(v) || 0), 0);
-    }
+        return Object.entries(scores[index])
+            .filter(([key]) => key !== "drop")   
+            .reduce((sum, [, v]) => sum + (Number(v) || 0), 0);
+    };
+
 
     const handleNext = () => {
         // validation before going next
@@ -59,22 +61,22 @@ const JudgePanel = () => {
         }
     }
 
-    const handleDrop=(checked)=>{
-        const newDrops=[...dropflag]
-        newDrops[poseIndex]=checked 
+    const handleDrop = (checked) => {
+        const newDrops = [...dropflag]
+        newDrops[poseIndex] = checked
         setDropflag(newDrops)
-        if(checked){
-            const updatedScores=[...scores]
-            
-            Object.keys(updatedScores[poseIndex]).forEach(k=>{
-               
-                updatedScores[poseIndex][k]=0
+        if (checked) {
+            const updatedScores = [...scores]
+
+            Object.keys(updatedScores[poseIndex]).forEach(k => {
+
+                updatedScores[poseIndex][k] = 0
             })
 
-            
-            updatedScores[poseIndex].drop=true
+
+            updatedScores[poseIndex].drop = true
             setScores(updatedScores)
-            toast.error(`Pose ${poseIndex+1} marked as DROP. All scores set to 0`)
+            toast.error(`Pose ${poseIndex + 1} marked as DROP. All scores set to 0`)
         }
     }
 
@@ -96,11 +98,11 @@ const JudgePanel = () => {
         const payload = {
             studentId,
             group: group,
-            poseScores: scores.map((pose, i)=>({
+            poseScores: scores.map((pose, i) => ({
                 ...pose,
-                drop:drop
+                drop: drop
             })),
-            totals: drop?0:getPoseTotal(i)
+            totals: drop ? 0 : getPoseTotal(i)
         }
 
         try {
