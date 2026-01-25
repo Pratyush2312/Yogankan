@@ -10,7 +10,8 @@ const PoseSchema = new mongoose.Schema({
     yogicComposure: Number,
     dressCode: Number,
     overallPerformance: Number,
-    poseTotal:Number
+    poseTotal:Number,
+    drop:{type:Boolean, default:false}
 })
 const ScoreSchema = new mongoose.Schema({
     judgeId: String,

@@ -29,6 +29,7 @@ app.post("/submitscore", authMiddleware, async (req, res) => {
   console.log("JWT Judge:", req.judgeId);
 
   try {
+    // const poseScoresWithTotal=poseScores.map
     const { studentId, poseScores, group, drop } = req.body;
     const judgeId = req.judgeId;
     // Duplicate check
@@ -49,6 +50,12 @@ app.post("/submitscore", authMiddleware, async (req, res) => {
 
     // Add poseTotal to each pose
     const poseScoresWithTotal = poseScores.map(pose => {
+      if(pose.drop===true){
+        return{
+          ...pose,
+          poseTotal:0
+        }
+      }
       const poseTotal = calculatePoseTotal(pose);
       return {
         ...pose,
@@ -74,7 +81,6 @@ app.post("/submitscore", authMiddleware, async (req, res) => {
 
     await score.save();
 
-    const submittedCount = await Score.countDocuments({ studentId });
 
     res.json({
       status: "success",
@@ -82,8 +88,7 @@ app.post("/submitscore", authMiddleware, async (req, res) => {
       judgeId,
       group,
       studentId,
-      finalTotal,
-      submittedCount
+      finalTotal
     });
 
   } catch (err) {
