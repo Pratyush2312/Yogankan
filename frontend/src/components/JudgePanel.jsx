@@ -16,6 +16,7 @@ const categories = [
     { key: "yogicComposure", label: "Yogic Composure (10)" },
     { key: "dressCode", label: "Discipline & Dress Code (5)" },
     { key: "overallPerformance", label: "Overall Performance (10)" },
+    { key: "drop", label: "DROP"}
 ]
 
 const TOTAL_POSES = 5
@@ -25,7 +26,7 @@ const JudgePanel = () => {
     const [group, setgroup] = useState("")
     const emptyPoseScore = categories.reduce((acc, c) => ({ ...acc, [c.key]: "" }), {});
     const [poseIndex, setPoseIndex] = useState(0); // which pose is active
-    const [drop, setDrop] = useState(false)
+    const [dropflag, setDropflag] = useState(Array(TOTAL_POSES).fill(false))
     const [scores, setScores] = useState(
         Array(TOTAL_POSES).fill().map(() => ({ ...emptyPoseScore }))
     )
@@ -58,6 +59,25 @@ const JudgePanel = () => {
         }
     }
 
+    const handleDrop=(checked)=>{
+        const newDrops=[...dropflag]
+        newDrops[poseIndex]=checked 
+        setDropflag(newDrops)
+        if(checked){
+            const updatedScores=[...scores]
+            
+            Object.keys(updateScore[poseIndex]).forEach(k=>{
+               
+                updatedScores[poseIndex][k]=0
+            })
+
+            
+            updatedScores[poseIndex].drop=true
+            setScores(updatedScores)
+            toast.error(`Pose ${poseIndex+1} marked as DROP. All scores set to 0`)
+        }
+    }
+
     const handleSubmit = async () => {
         for (let pose = 0; pose < TOTAL_POSES; pose++) {
             for (let cat of categories) {
@@ -75,10 +95,12 @@ const JudgePanel = () => {
 
         const payload = {
             studentId,
-            poseScores: scores,
             group: group,
-            drop: drop ? "Yes" : "No",
-            totals: scores.map((_, i) => getPoseTotal(i))
+            poseScores: scores.map((pose, i)=>({
+                ...pose,
+                drop:drop
+            })),
+            totals: drop?0:getPoseTotal(i)
         }
 
         try {
@@ -144,10 +166,7 @@ const JudgePanel = () => {
                         onChange={(e) => setStudentId(e.target.value)}
                         className="border px-3 py-2 rounded-xl w-full sm:w-32"
                     />
-                    <input type="checkbox" checked={drop} onChange={(e) => {
-                        setDrop(e.target.checked)
-                        console.log(drop)
-                    }} />
+                    <input type="checkbox" checked={drop} onChange={(e) => handleDrop(e.target.checked)} />
                     <label>Drop:</label>
                     <p>{drop ? "Yes" : "No"}</p>
                 </div>
