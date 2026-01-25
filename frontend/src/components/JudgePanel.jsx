@@ -168,7 +168,7 @@ const JudgePanel = () => {
                     />
                     <input type="checkbox" checked={dropflag} onChange={(e) => handleDrop(e.target.checked)} />
                     <label>Drop:</label>
-                    <p>{drop ? "Yes" : "No"}</p>
+                    <p>{dropflag ? "Yes" : "No"}</p>
                 </div>
 
                 {/* CURRENT POSE */}
