@@ -166,7 +166,7 @@ const JudgePanel = () => {
                         onChange={(e) => setStudentId(e.target.value)}
                         className="border px-3 py-2 rounded-xl w-full sm:w-32"
                     />
-                    <input type="checkbox" checked={drop} onChange={(e) => handleDrop(e.target.checked)} />
+                    <input type="checkbox" checked={dropflag} onChange={(e) => handleDrop(e.target.checked)} />
                     <label>Drop:</label>
                     <p>{drop ? "Yes" : "No"}</p>
                 </div>
