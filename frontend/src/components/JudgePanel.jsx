@@ -100,7 +100,7 @@ const JudgePanel = () => {
             group: group,
             poseScores: scores.map((pose, i) => ({
                 ...pose,
-                drop: drop
+                drop: dropflag[i]
             })),
             totals: drop ? 0 : getPoseTotal(i)
         }
