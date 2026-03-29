@@ -1,4 +1,5 @@
-import express, { json } from 'express'
+import express from 'express'
+import ExcelJS from "exceljs";
 import cors from 'cors'
 import dotenv from 'dotenv'
 import authMiddleware from './middleware/authmiddleware.js'
@@ -10,10 +11,10 @@ const port = 3000
 import authRoutes from "./routes/auth.js"
 import cookieParser from "cookie-parser";
 
-const URL=process.env.FRONTEND_URL
+const URL = process.env.FRONTEND_URL
 app.use(cookieParser());
 app.use(cors({
-  origin: URL, 
+  origin: "http://localhost:5173", URL,
   credentials: true
 }));
 dotenv.config()
@@ -25,78 +26,118 @@ app.use(express.json())
 app.use("/auth", authRoutes)
 
 
-app.post("/submitscore", authMiddleware, async (req, res) => {
-  console.log("JWT Judge:", req.judgeId);
-
+app.post("/submitscore/bulk", authMiddleware, async (req, res) => {
   try {
-    // const poseScoresWithTotal=poseScores.map
-    const { studentId, poseScores, group, drop } = req.body;
-    const judgeId = req.judgeId;
-    // Duplicate check
-    const exists = await Score.findOne({ judgeId, studentId, group });
-    if (exists) {
-      return res.json({
-        status: "duplicate",
-        message: `Score for Student ${studentId} is already submitted by Judge ${judgeId}`
+    const { students, group } = req.body;
+
+    // 🔴 ROLE CHECK
+    if (!req.judgeId) {
+      return res.status(403).json({
+        status: "error",
+        message: "Access denied: Only judges can submit scores"
       });
     }
 
-    // Function to calculate one pose total
+    const judgeId = req.judgeId;
+
+    // ✅ validations
+    if (!group) {
+      return res.status(400).json({
+        status: "error",
+        message: "Group required"
+      });
+    }
+
+    if (!students || students.length === 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "No students data"
+      });
+    }
+
+    // 🧠 helper
     const calculatePoseTotal = (pose) => {
-      return Object.values(pose)
-        .filter(v => typeof v === "number")
-        .reduce((sum, v) => sum + v, 0);
+      return Object.entries(pose)
+        .filter(([_, val]) => typeof val === "number")
+        .reduce((sum, [, val]) => sum + val, 0);
     };
 
-    // Add poseTotal to each pose
-    const poseScoresWithTotal = poseScores.map(pose => {
-      if(pose.drop===true){
-        return{
-          ...pose,
-          poseTotal:0
-        }
+    const results = [];
+    const duplicates = [];
+
+    for (let s of students) {
+      const { studentId, poseScores } = s;
+
+      if (!studentId || !poseScores) continue;
+
+      // 🔒 duplicate check
+      const exists = await Score.findOne({ judgeId, studentId, group });
+
+      if (exists) {
+        duplicates.push(studentId);
+        continue; // 🔥 IMPORTANT: skip only this student
       }
-      const poseTotal = calculatePoseTotal(pose);
-      return {
-        ...pose,
-        poseTotal
-      };
-    });
 
-    // Calculate final total (sum of all poseTotals)
-    const finalTotal = poseScoresWithTotal.reduce(
-      (sum, p) => sum + p.poseTotal,
-      0
-    );
+      // 🧠 pose processing
+      const poseScoresWithTotal = poseScores.map(pose => {
+        const isDrop = pose.drop === true;
 
-    // Save to DB
-    const score = new Score({
-      judgeId,
-      studentId,
-      group,
-      drop,
-      poseScores: poseScoresWithTotal,
-      finalTotal
-    });
+        if (isDrop) {
+          return {
+            ...pose,
+            drop: true,
+            poseTotal: 0
+          };
+        }
 
-    await score.save();
+        const poseTotal = calculatePoseTotal(pose);
 
+        return {
+          ...pose,
+          drop: false,
+          poseTotal
+        };
+      });
 
+      // 🧮 final total
+      const finalTotal = poseScoresWithTotal.reduce(
+        (sum, p) => sum + p.poseTotal,
+        0
+      );
+
+      // 💾 save
+      const score = new Score({
+        judgeId,
+        studentId,
+        group,
+        poseScores: poseScoresWithTotal,
+        finalTotal
+      });
+
+      await score.save();
+
+      results.push({
+        studentId,
+        finalTotal
+      });
+    }
+
+    // 🎯 RESPONSE (important)
     res.json({
       status: "success",
-      message: "Score received successfully",
-      judgeId,
-      group,
-      studentId,
-      finalTotal
+      message: "Bulk scoring completed",
+      saved: results,
+      duplicates: duplicates
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: "error", message: "Error saving score" });
+    console.error("Bulk Save Error:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Bulk save failed"
+    });
   }
 });
-
 
 app.delete("/reset-scores", authMiddleware, async (req, res) => {
   try {
@@ -114,23 +155,33 @@ app.delete("/reset-scores", authMiddleware, async (req, res) => {
 app.get("/results/:group/:studentId", authMiddleware, async (req, res) => {
   try {
     const studentId = Number(req.params.studentId);
-    const group = req.params.group
-    const entries = await Score.find({ studentId, group });
-    // const entries = await Score.find({
-    //   studentId,
-    //   $or: [
-    //     { group },
-    //     { group: { $exists: false } } // old records without group
-    //   ]
-    // });
+    const group = req.params.group;
 
+    const entries = await Score.find({ studentId, group });
 
     if (!entries || entries.length === 0) {
       return res.json({ message: "No scores found", total: 0 });
     }
 
-    const combinedTotal = entries.reduce((sum, entry) => sum + entry.finalTotal, 0);
-    const submittedCount = await Score.countDocuments({studentId})
+    // 🔥 collect all judge scores
+    const scores = entries.map(e => e.finalTotal);
+
+    let combinedTotal = 0;
+
+    if (scores.length > 2) {
+      const sorted = [...scores].sort((a, b) => a - b);
+
+      // remove lowest & highest
+      const trimmed = sorted.slice(1, -1);
+
+      combinedTotal = trimmed.reduce((sum, v) => sum + v, 0);
+    } else {
+      // fallback
+      combinedTotal = scores.reduce((sum, v) => sum + v, 0);
+    }
+
+    const submittedCount = await Score.countDocuments({ studentId, group });
+
     res.json({
       studentId,
       judgesCount: entries.length,
@@ -143,51 +194,135 @@ app.get("/results/:group/:studentId", authMiddleware, async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Error fetching results" });
   }
-})
-
+});
 
 app.get("/export", async (req, res) => {
   try {
     const data = await Score.find({}, { _id: 0, __v: 0 }).lean();
 
-    const formatted = data.map(d => {
-      const row = {
-        Judge: d.judgeId,
-        StudentID: d.studentId,
-        Group: d.group,
-        Drop:d.drop===true||d.drop==="Yes"?"Yes":"No"
-      };
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Yoga Scores");
 
-      d.poseScores.forEach((pose, i) => {
-        const p = i + 1;
-        row[`P${p}_Accuracy`] = pose.accuracy || 0;
-        row[`P${p}_Stability`] = pose.stability || 0;
-        row[`P${p}_HoldDuration`] = pose.holdDuration || 0;
-        row[`P${p}_AestheticFlow`] = pose.aestheticFlow || 0;
-        row[`P${p}_FacialExpression`] = pose.facialExpression || 0;
-        row[`P${p}_BreathControl`] = pose.breathControl || 0;
-        row[`P${p}_Mindfulness`] = pose.mindfulness || 0;
-        row[`P${p}_YogicComposure`] = pose.yogicComposure || 0;
-        row[`P${p}_DressCode`] = pose.dressCode || 0;
-        row[`P${p}_OverallPerformance`] = pose.overallPerformance || 0;
-        row[`P${p}_finalScore`] = pose.poseTotal
+    // 🔥 HEADER
+    const headers = [
+      "Judge ID",
+      "Student ID",
+      "Group",
+      "Total Drops",
+      "Final Score"
+    ];
+
+    // Add pose headers dynamically
+    for (let i = 1; i <= 5; i++) {
+      headers.push(
+        `Pose ${i} Drop`,
+        `Pose ${i} Total`,
+        `Pose ${i} Accuracy`,
+        `Pose ${i} Stability`,
+        `Pose ${i} Hold`,
+        `Pose ${i} Flow`,
+        `Pose ${i} Expression`,
+        `Pose ${i} Breath`,
+        `Pose ${i} Focus`,
+        `Pose ${i} Sequence`,
+        `Pose ${i} Composure`,
+        `Pose ${i} Dress`,
+        `Pose ${i} Overall`
+      );
+    }
+
+    worksheet.addRow(headers);
+
+    // 🎨 HEADER STYLE
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { horizontal: "center" };
+
+    // 📊 DATA
+    data.forEach(d => {
+      const poses = d.poseScores || [];
+
+      const row = [
+        d.judgeId || "N/A",
+        d.studentId,
+        d.group,
+        poses.filter(p => p?.drop).length,
+        d.finalTotal || 0
+      ];
+
+      for (let i = 0; i < 5; i++) {
+        const pose = poses[i] || {};
+        const isDrop = pose.drop === true;
+
+        row.push(
+          isDrop ? "Yes" : "No",
+          pose.poseTotal ?? 0,
+          pose.accuracy ?? 0,
+          pose.stability ?? 0,
+          pose.holdDuration ?? 0,
+          pose.aestheticFlow ?? 0,
+          pose.facialExpression ?? 0,
+          pose.breathControl ?? 0,
+          pose.mindfulness ?? 0,
+          pose.sequence ?? 0,
+          pose.yogicComposure ?? 0,
+          pose.dressCode ?? 0,
+          pose.overallPerformance ?? 0
+        );
+      }
+
+      const addedRow = worksheet.addRow(row);
+
+      // 🎨 CONDITIONAL STYLING
+      addedRow.eachCell((cell, colNumber) => {
+        // Highlight Drops
+        if (cell.value === "Yes") {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF9999" } // red
+          };
+        }
+        if (cell.value === "No") {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "00FF00" } // green
+          };
+        }
+
+        // Highlight high scores
+        if (typeof cell.value === "number" && cell.value >= 8) {
+          cell.font = { bold: true };
+        }
       });
-
-      row.FinalTotal = d.finalTotal;
-      return row;
     });
 
-    const csv = await json2csv(formatted);
+    // 📏 AUTO WIDTH
+    worksheet.columns.forEach(column => {
+      column.width = 15;
+    });
 
-    res.header("Content-Type", "text/csv");
-    res.attachment("yoga_scores_5poses.csv");
-    res.send(csv);
+    // ❄️ FREEZE HEADER
+    worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+    // 📤 SEND FILE
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=Yoga_Scoring.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
 
   } catch (err) {
-    res.status(500).json({ message: "CSV export failed" });
+    console.error(err);
+    res.status(500).json({ message: "Excel export failed" });
   }
 });
-
 
 
 app.get("/students", authMiddleware, async (req, res) => {
@@ -245,10 +380,44 @@ app.put("/admin/update", authMiddleware, async (req, res) => {
 app.get("/students/:group", authMiddleware, async (req, res) => {
   try {
     const group = req.params.group;
-    const students = await Score.distinct("studentId", { group });
-    res.json(students);
+
+    const data = await Score.find({ group });
+
+    const map = {};
+
+    data.forEach(entry => {
+      const id = entry.studentId;
+
+      if (!map[id]) {
+        map[id] = {
+          studentId: id,
+          totalScore: 0,
+          judges: [],
+          submitted: 0
+        };
+      }
+
+      map[id].totalScore += entry.finalTotal;
+      map[id].judges.push(entry.judgeId);
+      map[id].submitted += 1;
+    });
+
+    // convert to array
+    let result = Object.values(map);
+
+    // 🔥 sort by score
+    result.sort((a, b) => b.totalScore - a.totalScore);
+
+    // 🏆 add rank
+    result = result.map((s, i) => ({
+      ...s,
+      rank: i + 1
+    }));
+
+    res.json(result);
+
   } catch (err) {
-    res.status(500).json({ message: "Error fetching group students" });
+    res.status(500).json({ message: "Error fetching leaderboard" });
   }
 });
 

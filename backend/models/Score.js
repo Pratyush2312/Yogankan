@@ -17,7 +17,6 @@ const ScoreSchema = new mongoose.Schema({
     judgeId: String,
     studentId: Number,
     group: String,
-    drop: String,
     poseScores: [PoseSchema],
     finalTotal: Number
 });
