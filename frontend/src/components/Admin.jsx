@@ -68,50 +68,33 @@ const Admin = () => {
     }
     
     const fetchAllResults = async (selectedGroup) => {
-        console.log(selectedGroup)
         if (!selectedGroup) {
             toast("Select group first", { icon: "⚠️" });
             return;
         }
-        setLoading(true)
-        const toastId = toast.loading("Loading results...")
-        try {
 
-            const students = await fetch(`${URL}/students/${selectedGroup}`, {
+        setLoading(true);
+        const toastId = toast.loading("Loading results...");
+
+        try {
+            const data = await fetch(`${URL}/students/${selectedGroup}`, {
                 credentials: "include",
             }).then(res => res.json());
 
-            let final = [];
+            // already sorted from backend (but safe sort)
+            const sortedResults = data.sort((a, b) => b.totalScore - a.totalScore);
 
-            for (let sid of students) {
-                const res = await fetch(`${URL}/results/${selectedGroup}/${sid}`, {
-                    credentials: "include"
-                })
-                const data = await res.json();
+            setAllResults(sortedResults);
 
-                final.push({
-                    studentId: sid,
-                    combinedTotal: data.combinedTotal,
-                    submittedCount: data.submittedCount
-                });
-            }
-
-            const sortedresults = [...final].sort((a, b) => b.combinedTotal - a.combinedTotal)
-            setAllResults(sortedresults)
-            console.log(sortedresults)
-            setTimeout(() => {
-                toast.success("All student results fetched!")
-            }, 700);
+            toast.success("Leaderboard loaded!");
 
         } catch (err) {
-            toast.error("Error fetching all student results");
+            toast.error("Error fetching results");
         }
-        setTimeout(() => {
-            setLoading(false)
-            toast.dismiss(toastId)
-        }, 700);
-    };
 
+        setLoading(false);
+        toast.dismiss(toastId);
+    };
     const handleExport = () => {
         window.open(`${URL}/export`, "_blank")
     }
@@ -129,7 +112,7 @@ const Admin = () => {
                     <div className="sm:absolute sm:right-6 flex gap-2">
                         <button onClick={handleExport}
                             className="bg-blue-500 text-white px-3 py-2 rounded-xl shadow hover:bg-blue-600 transition">
-                            Export CSV
+                            Export Scores
                         </button>
 
                         <button
@@ -222,7 +205,7 @@ const Admin = () => {
                     )}
 
                     {activeTab === "all" && (
-                        <div className="bg-white/70 backdrop-blur-md p-5 rounded-2xl shadow-xl w-full max-w-4xl">
+                        <div className="bg-white/70 backdrop-blur-md p-5 rounded-2xl shadow-xl w-full max-w-5xl">
 
                             <h2 className="text-xl sm:text-2xl font-serif text-green-700 text-center mb-4">
                                 Group {group || "-"} Leaderboard
@@ -246,25 +229,72 @@ const Admin = () => {
 
                             <div className="overflow-x-auto">
                                 <table className="min-w-full border-collapse rounded-xl overflow-hidden text-sm sm:text-base">
+
                                     <thead>
                                         <tr className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
                                             <th className="p-3">Rank</th>
                                             <th className="p-3">Student ID</th>
                                             <th className="p-3">Score</th>
-                                            <th className="p-3">Submitted Count</th>
+                                            <th className="p-3">Submitted</th>
+                                            <th className="p-3">Judges</th> {/* 🔥 NEW */}
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         {allResults.map((s, index) => (
-                                            <tr key={s.studentId}
-                                                className={`text-center ${index % 2 === 0 ? "bg-green-50" : "bg-white"} hover:bg-green-100`}>
-                                                <td className="p-3 font-semibold">#{index + 1}</td>
+                                            <tr
+                                                key={s.studentId}
+                                                className={`text-center ${index === 0
+                                                        ? "bg-yellow-100"
+                                                        : index === 1
+                                                            ? "bg-gray-100"
+                                                            : index === 2
+                                                                ? "bg-orange-100"
+                                                                : index % 2 === 0
+                                                                    ? "bg-green-50"
+                                                                    : "bg-white"
+                                                    } hover:bg-green-100`}
+                                            >
+
+                                                {/* Rank */}
+                                                <td className="p-3 font-semibold">
+                                                    {index === 0 && "🥇"}
+                                                    {index === 1 && "🥈"}
+                                                    {index === 2 && "🥉"}
+                                                    {index > 2 && `#${index + 1}`}
+                                                </td>
+
+                                                {/* Student */}
                                                 <td className="p-3">{s.studentId}</td>
-                                                <td className="p-3 font-bold text-green-700">{s.combinedTotal}</td>
-                                                <td className="p-3 font-bold text-green-700">{s.submittedCount}/5</td>
+
+                                                {/* Score */}
+                                                <td className="p-3 font-bold text-green-700">
+                                                    {s.totalScore}
+                                                </td>
+
+                                                {/* Submitted */}
+                                                <td className="p-3 font-bold text-green-700">
+                                                    {s.submitted}/5
+                                                </td>
+
+                                                {/* 🔥 Judges */}
+                                                <td className="p-3">
+                                                    <div className="flex gap-2 justify-center flex-wrap">
+                                                        {s.judges?.map((j, i) => (
+                                                            <span
+                                                                key={i}
+                                                                className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs sm:text-sm"
+                                                            >
+                                                                {j}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+
                                             </tr>
                                         ))}
                                     </tbody>
+
                                 </table>
                             </div>
 

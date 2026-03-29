@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router'
 import PageWrapper from './PageWrapper'
 import Logout from './Logout';
-
+import { MdArrowBack } from "react-icons/md";
 const URL = import.meta.env.VITE_BACKEND_URL
 
 const categories = [
@@ -21,77 +21,90 @@ const categories = [
 ];
 
 const TOTAL_POSES = 5;
-const grp = ["A","B","C","D","E","F","G","H","I"];
+const STUDENTS = 5;
+const grp = ["A", "B", "C", "D", "E", "F", "G", "H"]
+const emptyScore = categories.reduce((a, c) => ({ ...a, [c.key]: "" }), {});
 
 const JudgePanel = () => {
   const { judgeId } = useParams();
-  const [group, setGroup] = useState("");
-  const [studentId, setStudentId] = useState("");
-  const [poseIndex, setPoseIndex] = useState(0);
+  const [group, setGroup] = useState();
+  const [pose, setPose] = useState(0);
 
-  const emptyPoseScore = categories.reduce((acc, c) => ({ ...acc, [c.key]: "" }), {});
-  const [scores, setScores] = useState(Array(TOTAL_POSES).fill().map(() => ({ ...emptyPoseScore })));
-  const [dropflag, setDropflag] = useState(Array(TOTAL_POSES).fill(false));
+  const [studentIds, setStudentIds] = useState(Array(STUDENTS).fill(""));
+  const [scores, setScores] = useState(
+    Array(TOTAL_POSES).fill().map(() =>
+      Array(STUDENTS).fill().map(() => ({ ...emptyScore }))
+    )
+  );
+  const [drops, setDrops] = useState(
+    Array(TOTAL_POSES).fill().map(() => Array(STUDENTS).fill(false))
+  );
 
-  const updateScore = (category, value) => {
+  const updateScore = (student, cat, val) => {
     const updated = [...scores];
-    updated[poseIndex][category] = value === "" ? "" : Number(value);
+    updated[pose][student][cat] = val === "" ? "" : Number(val);
     setScores(updated);
   };
 
-  const getPoseTotal = (i) => {
-    return Object.values(scores[i]).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  };
-
-  const handleDrop = (checked) => {
-    const newDrops = [...dropflag];
-    newDrops[poseIndex] = checked;
-    setDropflag(newDrops);
+  const handleDrop = (student, checked) => {
+    const d = [...drops];
+    d[pose][student] = checked;
 
     if (checked) {
-      const updated = [...scores];
-      Object.keys(updated[poseIndex]).forEach(k => updated[poseIndex][k] = 0);
-      setScores(updated);
-      toast.error(`Pose ${poseIndex + 1} marked as DROP. All scores set to 0`);
+      Object.keys(scores[pose][student]).forEach(k => scores[pose][student][k] = 0);
+      setScores([...scores]);
+    }
+    setDrops(d);
+  };
+
+  const prevPose = () => {
+    if (pose > 0) {
+      setPose(pose - 1);
     }
   };
 
-  const handleNext = () => {
-    for (let cat of categories) {
-      if (!dropflag[poseIndex] && scores[poseIndex][cat.key] === "") {
-        toast.error(`Please fill ${cat.label}`);
-        return;
+  const validatePose = () => {
+    for (let s = 0; s < STUDENTS; s++) {
+      if (!studentIds[s]) {
+        toast.error(`Enter Student ${s + 1} ID`);
+        return false
       }
-    }
-    setPoseIndex(poseIndex + 1);
-  };
-
-  const handleSubmit = async () => {
-    for (let p = 0; p < TOTAL_POSES; p++) {
       for (let cat of categories) {
-        if (!dropflag[p] && scores[p][cat.key] === "") {
-          toast.error(`Pose ${p + 1}: ${cat.label} missing`);
-          return;
+        if (!drops[pose][s] && scores[pose][s][cat.key] === "") {
+
+          toast.error(`Pose ${pose + 1} Student ${s + 1}: ${cat.label}`);
+          return false
         }
       }
     }
-    if (!group) {
-      toast.error("Please select group");
-      return;
-    }
+    return true;
+  };
 
+  const nextPose = () => {
+    if (!validatePose()) return;
+
+    if (pose < TOTAL_POSES - 1) {
+      setPose(pose + 1);
+    } else {
+      submitAll();
+    }
+  };
+
+  const submitAll = async () => {
     const payload = {
-      studentId,
       group,
-      poseScores: scores.map((pose, i) => ({
-        ...pose,
-        drop: dropflag[i],
-        // total: dropflag[i] ? 0 : getPoseTotal(i)
+      judge: judgeId,
+      students: studentIds.map((id, si) => ({
+        studentId: id,
+        poseScores: scores.map((p, pi) => ({
+          ...p[si],
+          drop: drops[pi][si]
+        }))
       }))
     };
 
     try {
-      const res = await fetch(`${URL}/submitscore`, {
+      const res = await fetch(`${URL}/submitscore/bulk`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -100,82 +113,167 @@ const JudgePanel = () => {
 
       const data = await res.json();
 
-      if (data.status === "duplicate") {
-        toast.error(data.message);
-        return;
+      // 🔥 SUCCESS CASE
+      if (data.status === "success") {
+
+        if (data.saved?.length > 0 && data.duplicates?.length === 0) {
+          toast.success("All students scored! 🎉");
+        }
+
+        else if (data.saved?.length > 0 && data.duplicates?.length > 0) {
+          toast.success(`Saved: ${data.saved.length}`);
+          toast.error(`Already submitted: ${data.duplicates.join(", ")}`);
+        }
+
+        else if (data.saved?.length === 0 && data.duplicates?.length > 0) {
+          toast.error(`All duplicates: ${data.duplicates.join(", ")}`);
+        }
+
+      } else {
+        toast.error(data.message || "Failed");
       }
 
-      if (data.status === "success") {
-        toast.success("Score submitted successfully 🧘‍♂️");
-        setPoseIndex(0);
-        setStudentId("");
-        setScores(Array(TOTAL_POSES).fill().map(() => ({ ...emptyPoseScore })));
-        setDropflag(Array(TOTAL_POSES).fill(false));
-      }
-    } catch (err) {
-      toast.error("Backend error");
+    } catch {
+      toast.error("Server error");
     }
   };
 
   return (
     <PageWrapper>
-      <div className="min-h-screen p-6 bg-[#FAF3E0]">
-        <h1 className="text-3xl font-bold text-center text-green-600 mb-4">Judge Panel</h1>
+      <div className="min-h-screen p-4 sm:p-6 bg-gradient-to-br from-green-50 via-[#FAF3E0] to-green-100">
 
-        <div className="flex justify-between mb-4">
-          <h2 className="font-bold text-xl">Welcome Judge {judgeId}</h2>
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+
+          {/* LEFT: Back + Title */}
+          <div className="flex items-center gap-3">
+
+            {/* Back Button */}
+            <button
+              onClick={prevPose}
+              disabled={pose === 0}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition
+        ${pose === 0
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                }`}
+            >
+              <MdArrowBack />
+            </button>
+
+            {/* Title */}
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-green-800">
+                🧘 Judge {judgeId}
+              </h2>
+              <p className="text-green-600 text-sm font-medium">
+                Pose {pose + 1}/5
+              </p>
+            </div>
+
+          </div>
+
+          {/* RIGHT: Logout */}
           <Logout />
+
         </div>
 
-        <div className="flex gap-4 mb-4">
-          <select value={group} onChange={e => setGroup(e.target.value)} className="border p-2 rounded">
-            <option value="">Select Group</option>
-            {grp.map(g => <option key={g}>{g}</option>)}
+        {/* GROUP + IDS */}
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-md mb-6 flex flex-wrap gap-3 justify-center sm:justify-start">
+
+          <select
+            value={group}
+            onChange={e => setGroup(e.target.value)}
+            className="border border-green-400 px-3 py-2 rounded-lg text-center focus:ring-2 focus:ring-green-400"
+          >
+            <option value="">Group</option>
+            {grp.map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
           </select>
 
-          <input
-            type="number"
-            placeholder="Student ID"
-            value={studentId}
-            onChange={e => setStudentId(e.target.value)}
-            className="border p-2 rounded w-32"
-          />
-
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={dropflag[poseIndex]} onChange={e => handleDrop(e.target.checked)} />
-            Drop: {dropflag[poseIndex] ? "Yes" : "No"}
-          </label>
-        </div>
-
-        <h3 className="font-bold text-lg mb-2">Pose {poseIndex + 1}</h3>
-
-        <div className="bg-white p-4 rounded shadow space-y-2">
-          {categories.map(cat => (
-            <div key={cat.key} className="flex justify-between items-center">
-              <span>{cat.label}</span>
-              <input
-                type="number"
-                className="border p-1 w-20 text-center"
-                value={scores[poseIndex][cat.key]}
-                onChange={e => updateScore(cat.key, e.target.value)}
-                disabled={dropflag[poseIndex]}
-              />
-            </div>
+          {studentIds.map((id, i) => (
+            <input
+              key={i}
+              value={id}
+              placeholder={`S${i + 1}`}
+              onChange={e => {
+                const arr = [...studentIds];
+                arr[i] = e.target.value;
+                setStudentIds(arr);
+              }}
+              className="border border-gray-300 px-3 py-2 rounded-lg w-20 text-center focus:ring-2 focus:ring-green-400"
+            />
           ))}
         </div>
 
-        <div className="mt-3 font-bold">Total: {dropflag[poseIndex] ? 0 : getPoseTotal(poseIndex)}</div>
+        {/* STUDENTS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
 
-        <div className="mt-4">
-          {poseIndex < TOTAL_POSES - 1 ? (
-            <button onClick={handleNext} className="bg-green-600 text-white px-6 py-2 rounded">Next</button>
-          ) : (
-            <button onClick={handleSubmit} className="bg-green-600 text-white px-6 py-2 rounded">Submit</button>
-          )}
+          {studentIds.map((_, si) => (
+            <div
+              key={si}
+              className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-lg border hover:shadow-xl transition"
+            >
+
+              {/* HEADER */}
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-green-700 text-lg">
+                  Student {si + 1}
+                </h3>
+
+                <label className="flex items-center gap-1 text-xs sm:text-sm">
+                  <input
+                    type="checkbox"
+                    checked={drops[pose][si]}
+                    onChange={e => handleDrop(si, e.target.checked)}
+                    className="accent-red-500"
+                  />
+                  <span className="text-red-600 font-medium">Drop</span>
+                </label>
+              </div>
+
+              {/* CATEGORY INPUTS */}
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+
+                {categories.map(cat => (
+                  <div key={cat.key} className="flex justify-between items-center text-sm">
+
+                    <span className="text-gray-700 w-2/3">
+                      {cat.label}
+                    </span>
+
+                    <input
+                      type="number"
+                      value={scores[pose][si][cat.key]}
+                      disabled={drops[pose][si]}
+                      onChange={e => updateScore(si, cat.key, e.target.value)}
+                      className="border border-gray-300 rounded-md w-16 text-center p-1 focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                ))}
+
+              </div>
+
+            </div>
+          ))}
+
         </div>
+
+        {/* BUTTON */}
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={nextPose}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-105 text-white px-10 py-3 rounded-2xl font-semibold shadow-xl transition"
+          >
+            {pose === TOTAL_POSES - 1 ? "Submit Scores" : "Next Pose"}
+          </button>
+        </div>
+
       </div>
     </PageWrapper>
   );
+
 };
 
 export default JudgePanel;
