@@ -28,7 +28,9 @@ const Login = () => {
       })
       const data = await res.json()
       if (data.status === 'success') {
-        navigate(`/judge/${data.judgeId}`)
+        setTimeout(() => {
+          navigate(`/judge/${data.judgeId}`)
+        }, 300);
       } else {
         toast.error(data.message)
       }
