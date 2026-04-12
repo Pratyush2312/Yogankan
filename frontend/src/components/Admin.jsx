@@ -112,7 +112,7 @@ const Admin = () => {
                     <div className="sm:absolute sm:right-6 flex gap-2">
                         <button onClick={handleExport}
                             className="bg-blue-500 text-white px-3 py-2 rounded-xl shadow hover:bg-blue-600 transition">
-                            Export Scores
+                            Export Data
                         </button>
 
                         <button
