@@ -1,5 +1,4 @@
 import './App.css'
-import { Analytics } from "@vercel/analytics/next"
 import JudgePanel from './components/JudgePanel'
 import Login from './components/Login'
 import { Route, Routes, useLocation } from 'react-router'
@@ -21,7 +20,6 @@ function App() {
           <Route path='/admin' element={<AdminLogin />} />
           <Route path="/admin/panel" element={<Admin />} />
           <Route path="/judge/:judgeId" element={<JudgePanel />} />
-          <Analytics />
         </Routes>
       </AnimatePresence>
     </>
