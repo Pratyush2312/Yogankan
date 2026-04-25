@@ -22,8 +22,8 @@ router.post('/login', async (req, res) => {
 
     res.cookie("token", token, {
         httpOnly: true,
-        sameSite: "lax",
-        secure: false, 
+        sameSite: "none",
+        secure: true, 
         maxAge: 24 * 60 * 60 * 1000 
     });
 
@@ -51,8 +51,8 @@ router.post('/admin/login', async (req, res) => {
     );
     res.cookie("admin_token", token, {
         httpOnly: true,
-        sameSite: "lax",
-        secure: false,
+        sameSite: "none",
+        secure: true,
         maxAge: 24 * 60 * 60 * 1000 
     });
     res.json({
