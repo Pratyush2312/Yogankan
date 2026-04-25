@@ -3,9 +3,10 @@ import toast from 'react-hot-toast'
 import PageWrapper from './PageWrapper'
 import { GrPowerReset } from "react-icons/gr"
 import Edit from './Edit'
+import { useNavigate } from 'react-router'
 
 const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
-const URL=import.meta.env.VITE_BACKEND_URL
+const URL = import.meta.env.VITE_BACKEND_URL
 const Admin = () => {
     const [StudentId, setStudentId] = useState("")
     const [result, setresult] = useState(null)
@@ -16,6 +17,23 @@ const Admin = () => {
     const [showmodal, setshowModal] = useState(false)
     // const [showTable, setShowTable] = useState(false);
     const [group, setgroup] = useState("")
+    const navigate = useNavigate();
+    const handleLogout = async () => {
+        try {
+            await fetch(`${URL}/admin-logout`, {
+                method: "POST",
+                credentials: "include"
+            });
+
+            toast.success("Logged out successfully");
+            navigate("/admin");
+        } catch (err) {
+            toast.error("Logout failed");
+            console.error(err);
+        }
+    };
+
+
     const handleReset = async () => {
         try {
             const res = await fetch(`${URL}/reset-scores`, {
@@ -66,7 +84,7 @@ const Admin = () => {
             toast.dismiss(toastId)
         }, 700);
     }
-    
+
     const fetchAllResults = async (selectedGroup) => {
         if (!selectedGroup) {
             toast("Select group first", { icon: "⚠️" });
@@ -127,6 +145,12 @@ const Admin = () => {
                             onClick={() => setshowModal(true)}
                         >
                             <GrPowerReset />
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl shadow"
+                        >
+                            Logout
                         </button>
                     </div>
                 </div>
@@ -236,7 +260,7 @@ const Admin = () => {
                                             <th className="p-3">Student ID</th>
                                             <th className="p-3">Score</th>
                                             <th className="p-3">Submitted</th>
-                                            <th className="p-3">Judges</th> {/* 🔥 NEW */}
+                                            <th className="p-3">Judges</th> 
                                         </tr>
                                     </thead>
 
@@ -245,14 +269,14 @@ const Admin = () => {
                                             <tr
                                                 key={s.studentId}
                                                 className={`text-center ${index === 0
-                                                        ? "bg-yellow-100"
-                                                        : index === 1
-                                                            ? "bg-gray-100"
-                                                            : index === 2
-                                                                ? "bg-orange-100"
-                                                                : index % 2 === 0
-                                                                    ? "bg-green-50"
-                                                                    : "bg-white"
+                                                    ? "bg-yellow-100"
+                                                    : index === 1
+                                                        ? "bg-gray-100"
+                                                        : index === 2
+                                                            ? "bg-orange-100"
+                                                            : index % 2 === 0
+                                                                ? "bg-green-50"
+                                                                : "bg-white"
                                                     } hover:bg-green-100`}
                                             >
 

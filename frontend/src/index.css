@@ -5,4 +5,5 @@
 body {
   font-family: 'Poppins', sans-serif;
   background: white;
+  overscroll-behavior-y: contain;
 }

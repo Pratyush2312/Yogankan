@@ -1,5 +1,5 @@
 import toast from 'react-hot-toast';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router'
 import PageWrapper from './PageWrapper'
 import Logout from './Logout';
@@ -30,14 +30,15 @@ const JudgePanel = () => {
   const [group, setGroup] = useState();
   const [pose, setPose] = useState(0);
 
-  const [studentIds, setStudentIds] = useState(Array(STUDENTS).fill(""));
+  const [studentIds, setStudentIds] = useState([""]);
   const [scores, setScores] = useState(
-    Array(TOTAL_POSES).fill().map(() =>
-      Array(STUDENTS).fill().map(() => ({ ...emptyScore }))
-    )
+    Array(TOTAL_POSES).fill().map(() => [
+      { ...emptyScore }
+    ])
   );
+
   const [drops, setDrops] = useState(
-    Array(TOTAL_POSES).fill().map(() => Array(STUDENTS).fill(false))
+    Array(TOTAL_POSES).fill().map(() => [false])
   );
 
   const updateScore = (student, cat, val) => {
@@ -64,7 +65,7 @@ const JudgePanel = () => {
   };
 
   const validatePose = () => {
-    for (let s = 0; s < STUDENTS; s++) {
+    for (let s = 0; s < studentIds.length; s++) {
       if (!studentIds[s]) {
         toast.error(`Enter Student ${s + 1} ID`);
         return false
@@ -138,43 +139,110 @@ const JudgePanel = () => {
     }
   };
 
+  const addStudent = () => {
+    setStudentIds(prev => {
+      const updated = [...prev, ""];
+
+      setScores(prevScores =>
+        prevScores.map(pose => [
+          ...pose,
+          { ...emptyScore }
+        ])
+      );
+
+      setDrops(prevDrops =>
+        prevDrops.map(pose => [
+          ...pose,
+          false
+        ])
+      );
+
+      return updated;
+    });
+  };
+
+  const removeStudent = (index) => {
+    setStudentIds(prev => prev.filter((_, i) => i !== index));
+
+    setScores(prev =>
+      prev.map(pose => pose.filter((_, i) => i !== index))
+    );
+
+    setDrops(prev =>
+      prev.map(pose => pose.filter((_, i) => i !== index))
+    );
+  };
+
+  useEffect(() => {
+    if (!group || studentIds.length === 0) return;
+
+    const timeout = setTimeout(() => {
+      localStorage.setItem(
+        `judgeData_${judgeId}`,
+        JSON.stringify({ group, studentIds, scores, drops, pose })
+      );
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [group, studentIds, scores, drops, pose, judgeId]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`judgeData_${judgeId}`);
+
+    if (saved) {
+      const data = JSON.parse(saved);
+
+      setGroup(data.group);
+      setStudentIds(data.studentIds);
+      setScores(data.scores);
+      setDrops(data.drops);
+      setPose(data.pose);
+
+      toast("Restored previous session 👍");
+    }
+  }, [judgeId]);
   return (
     <PageWrapper>
       <div className="min-h-screen p-4 sm:p-6 bg-gradient-to-br from-green-50 via-[#FAF3E0] to-green-100">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
 
-          {/* LEFT: Back + Title */}
-          <div className="flex items-center gap-3">
+          {/* TOP ROW */}
+          <div className="flex items-center justify-between w-full">
 
-            {/* Back Button */}
-            <button
-              onClick={prevPose}
-              disabled={pose === 0}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition
-        ${pose === 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
-            >
-              <MdArrowBack />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={prevPose}
+                disabled={pose === 0}
+                className={`px-3 py-2 rounded-lg ${pose === 0
+                    ? "bg-gray-200 text-gray-400"
+                    : "bg-gray-100 hover:bg-gray-200"
+                  }`}
+              >
+                ←
+              </button>
 
-            {/* Title */}
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-green-800">
-                🧘 Judge {judgeId}
-              </h2>
-              <p className="text-green-600 text-sm font-medium">
-                Pose {pose + 1}/5
-              </p>
+              <div>
+                <h2 className="text-lg font-bold text-green-800">
+                  🧘 Judge {judgeId}
+                </h2>
+                <p className="text-green-600 text-xs">
+                  Pose {pose + 1}/5
+                </p>
+              </div>
             </div>
 
+            <Logout />
           </div>
 
-          {/* RIGHT: Logout */}
-          <Logout />
+          {/* SECOND ROW */}
+          <button
+            onClick={addStudent}
+            className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium"
+          >
+            + Add Student
+          </button>
 
         </div>
 
@@ -193,31 +261,44 @@ const JudgePanel = () => {
           </select>
 
           {studentIds.map((id, i) => (
-            <input
-              key={i}
-              value={id}
-              placeholder={`S${i + 1}`}
-              onChange={e => {
-                const arr = [...studentIds];
-                arr[i] = e.target.value;
-                setStudentIds(arr);
-              }}
-              className="border border-gray-300 px-3 py-2 rounded-lg w-20 text-center focus:ring-2 focus:ring-green-400"
-            />
+            <div key={i} className="flex items-center gap-2">
+
+              <input
+                value={id}
+                placeholder={`S${i + 1}`}
+                onChange={e => {
+                  const arr = [...studentIds];
+                  arr[i] = e.target.value;
+                  setStudentIds(arr);
+                }}
+                className="border px-3 py-2 rounded-lg w-20 text-center"
+              />
+
+            
+
+            </div>
           ))}
         </div>
 
         {/* STUDENTS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
 
           {studentIds.map((_, si) => (
             <div
               key={si}
               className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-lg border hover:shadow-xl transition"
             >
-
+              {studentIds.length > 1 && (
+                <button
+                  onClick={() => removeStudent(si)}
+                  className="bg-gray-200 rounded-md px-2 py-1 text-red-500 text-xs absolute right-4 top-2"
+                >
+                  ✖
+                </button>
+              )}
+              
               {/* HEADER */}
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-3 mt-5">
                 <h3 className="font-semibold text-green-700 text-lg">
                   Student {si + 1}
                 </h3>
