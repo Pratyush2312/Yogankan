@@ -22,7 +22,7 @@ const categories = [
 
 const TOTAL_POSES = 5;
 const STUDENTS = 5;
-const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "P"]
+const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "P", "R", "YD"]
 const emptyScore = categories.reduce((a, c) => ({ ...a, [c.key]: "" }), {});
 
 const JudgePanel = () => {

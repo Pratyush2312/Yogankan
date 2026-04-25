@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import PageWrapper from './PageWrapper'
 import { GrPowerReset } from "react-icons/gr"
 import Edit from './Edit'
 import { useNavigate } from 'react-router'
 
-const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "P", "R", "YD"];
 const URL = import.meta.env.VITE_BACKEND_URL
 const Admin = () => {
     const [StudentId, setStudentId] = useState("")
@@ -117,6 +117,8 @@ const Admin = () => {
         window.open(`${URL}/export`, "_blank")
     }
 
+    
+    
     return (
         <PageWrapper>
             <div className="min-h-screen bg-gradient-to-br from-[#FAF3E0] via-[#F3F7E9] to-[#E8F5E9] px-4 sm:px-8 py-8">
