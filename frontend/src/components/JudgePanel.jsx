@@ -37,6 +37,11 @@ const JudgePanel = () => {
     ])
   );
 
+  const clearLocal = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
+
   const [drops, setDrops] = useState(
     Array(TOTAL_POSES).fill().map(() => [false])
   );
@@ -250,6 +255,12 @@ const JudgePanel = () => {
           </div>
 
           {/* SECOND ROW */}
+          <button
+            onClick={clearLocal}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg"
+          >
+            Reset Data
+          </button>
           <button
             onClick={addStudent}
             className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium"
