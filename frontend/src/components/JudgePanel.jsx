@@ -20,7 +20,7 @@ const categories = [
   { key: "overallPerformance", label: "Overall Performance (10)" }
 ];
 
-const TOTAL_POSES = 5;
+const TOTAL_POSES = 1;
 const STUDENTS = 5;
 const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "P", "R", "YD"]
 const emptyScore = categories.reduce((a, c) => ({ ...a, [c.key]: "" }), {});
