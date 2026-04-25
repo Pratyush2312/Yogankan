@@ -10,7 +10,6 @@ const expiresIn = process.env.JWT_EXPIRES
 router.post('/login', async (req, res) => {
     res.clearCookie("token");
     res.clearCookie("admin_token");
-    res.clearCookie("judge_token");
     const { judgeId, password } = req.body
     console.log(judgeId);
     const judge = await Judge.findOne({ judgeId })
@@ -37,7 +36,6 @@ router.post('/login', async (req, res) => {
 router.post('/admin/login', async (req, res) => {
     res.clearCookie("token");
     res.clearCookie("admin_token");
-    res.clearCookie("judge_token");
     const { adminId, password } = req.body
     console.log(adminId);
     const admin = await Admin.findOne({ adminId })
