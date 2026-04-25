@@ -8,7 +8,11 @@ dotenv.config()
 const secretKey = process.env.JWT_SECRET
 const expiresIn = process.env.JWT_EXPIRES
 router.post('/login', async (req, res) => {
+    res.clearCookie("token");
+    res.clearCookie("admin_token");
+    res.clearCookie("judge_token");
     const { judgeId, password } = req.body
+    console.log(judgeId);
     const judge = await Judge.findOne({ judgeId })
     if (!judge || judge.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" })
@@ -18,8 +22,8 @@ router.post('/login', async (req, res) => {
 
     res.cookie("token", token, {
         httpOnly: true,
-        sameSite: "None",
-        secure: true, 
+        sameSite: "lax",
+        secure: false, 
         maxAge: 24 * 60 * 60 * 1000 
     });
 
@@ -31,7 +35,11 @@ router.post('/login', async (req, res) => {
 })
 
 router.post('/admin/login', async (req, res) => {
+    res.clearCookie("token");
+    res.clearCookie("admin_token");
+    res.clearCookie("judge_token");
     const { adminId, password } = req.body
+    console.log(adminId);
     const admin = await Admin.findOne({ adminId })
     if (!admin || admin.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" })
@@ -39,12 +47,12 @@ router.post('/admin/login', async (req, res) => {
     const token = jwt.sign(
         { adminId },
         secretKey,
-        { expiresIn: "12h" }
+        { expiresIn: expiresIn }
     );
-    res.cookie("token", token, {
+    res.cookie("admin_token", token, {
         httpOnly: true,
-        sameSite: "None",
-        secure: true,
+        sameSite: "lax",
+        secure: false,
         maxAge: 24 * 60 * 60 * 1000 
     });
     res.json({

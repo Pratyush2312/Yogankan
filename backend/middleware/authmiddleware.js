@@ -4,7 +4,7 @@ dotenv.config()
 const secretKey = process.env.JWT_SECRET
 
 export default function authMiddleware(req,res,next){
-    const token=req.cookies.token
+    const token=req.cookies.token||req.cookies.admin_token
     if(!token){
         return res.status(401).json({message:"No token found"})
     }

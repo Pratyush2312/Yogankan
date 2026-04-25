@@ -14,7 +14,7 @@ import cookieParser from "cookie-parser";
 const URL = process.env.FRONTEND_URL
 app.use(cookieParser());
 app.use(cors({
-  origin: URL,
+  origin: "http://localhost:5173",
   credentials: true
 }));
 dotenv.config()
@@ -30,6 +30,9 @@ app.post("/submitscore/bulk", authMiddleware, async (req, res) => {
   try {
     const { students, group } = req.body;
 
+
+    console.log("Cookies:", req.cookies);
+    console.log("JudgeId:", req.judgeId);
     // 🔴 ROLE CHECK
     if (!req.judgeId) {
       return res.status(403).json({
@@ -37,7 +40,6 @@ app.post("/submitscore/bulk", authMiddleware, async (req, res) => {
         message: "Access denied: Only judges can submit scores"
       });
     }
-
     const judgeId = req.judgeId;
 
     // ✅ validations
@@ -200,6 +202,44 @@ app.get("/export", async (req, res) => {
   try {
     const data = await Score.find({}, { _id: 0, __v: 0 }).lean();
 
+    // 🔁 GROUP BY student (group + studentId)
+    const map = {};
+
+    data.forEach(d => {
+      const key = `${d.group}_${d.studentId}`;
+
+      if (!map[key]) {
+        map[key] = {
+          studentId: d.studentId,
+          group: d.group,
+          judgeScores: [],
+          entries: []
+        };
+      }
+
+      map[key].judgeScores.push(d.finalTotal);
+      map[key].entries.push(d);
+    });
+
+    // 🧠 FINAL SCORE CALCULATION (drop highest & lowest)
+    const finalData = Object.values(map).map(s => {
+      const sorted = [...s.judgeScores].sort((a, b) => a - b);
+
+      let filtered = sorted;
+
+      if (sorted.length > 2) {
+        filtered = sorted.slice(1, sorted.length - 1);
+      }
+
+      const combinedTotal = filtered.reduce((sum, v) => sum + v, 0);
+
+      return {
+        ...s,
+        combinedTotal
+      };
+    });
+
+    // 📊 CREATE EXCEL
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Yoga Scores");
 
@@ -209,10 +249,9 @@ app.get("/export", async (req, res) => {
       "Student ID",
       "Group",
       "Total Drops",
-      "Final Score"
+      "Final Score (After Drop)"
     ];
 
-    // Add pose headers dynamically
     for (let i = 1; i <= 5; i++) {
       headers.push(
         `Pose ${i} Drop`,
@@ -234,72 +273,74 @@ app.get("/export", async (req, res) => {
     worksheet.addRow(headers);
 
     // 🎨 HEADER STYLE
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).alignment = { horizontal: "center" };
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { horizontal: "center" };
 
-    // 📊 DATA
-    data.forEach(d => {
-      const poses = d.poseScores || [];
+    // 📥 DATA INSERT
+    finalData.forEach(student => {
+      student.entries.forEach(d => {
+        const poses = d.poseScores || [];
 
-      const row = [
-        d.judgeId || "N/A",
-        d.studentId,
-        d.group,
-        poses.filter(p => p?.drop).length,
-        d.finalTotal || 0
-      ];
+        const row = [
+          d.judgeId || "N/A",
+          d.studentId,
+          d.group,
+          poses.filter(p => p?.drop).length,
+          student.combinedTotal // 🔥 FINAL SCORE FIX
+        ];
 
-      for (let i = 0; i < 5; i++) {
-        const pose = poses[i] || {};
-        const isDrop = pose.drop === true;
+        for (let i = 0; i < 5; i++) {
+          const pose = poses[i] || {};
+          const isDrop = pose.drop === true;
 
-        row.push(
-          isDrop ? "Yes" : "No",
-          pose.poseTotal ?? 0,
-          pose.accuracy ?? 0,
-          pose.stability ?? 0,
-          pose.holdDuration ?? 0,
-          pose.aestheticFlow ?? 0,
-          pose.facialExpression ?? 0,
-          pose.breathControl ?? 0,
-          pose.mindfulness ?? 0,
-          pose.sequence ?? 0,
-          pose.yogicComposure ?? 0,
-          pose.dressCode ?? 0,
-          pose.overallPerformance ?? 0
-        );
-      }
-
-      const addedRow = worksheet.addRow(row);
-
-      // 🎨 CONDITIONAL STYLING
-      addedRow.eachCell((cell, colNumber) => {
-        // Highlight Drops
-        if (cell.value === "Yes") {
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF9999" } // red
-          };
-        }
-        if (cell.value === "No") {
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "00FF00" } // green
-          };
+          row.push(
+            isDrop ? "Yes" : "No",
+            pose.poseTotal ?? 0,
+            pose.accuracy ?? 0,
+            pose.stability ?? 0,
+            pose.holdDuration ?? 0,
+            pose.aestheticFlow ?? 0,
+            pose.facialExpression ?? 0,
+            pose.breathControl ?? 0,
+            pose.mindfulness ?? 0,
+            pose.sequence ?? 0,
+            pose.yogicComposure ?? 0,
+            pose.dressCode ?? 0,
+            pose.overallPerformance ?? 0
+          );
         }
 
-        // Highlight high scores
-        if (typeof cell.value === "number" && cell.value >= 8) {
-          cell.font = { bold: true };
-        }
+        const addedRow = worksheet.addRow(row);
+
+        // 🎨 CONDITIONAL STYLING
+        addedRow.eachCell(cell => {
+          if (cell.value === "Yes") {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFFF9999" } // red
+            };
+          }
+
+          if (cell.value === "No") {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFCCFFCC" } // light green
+            };
+          }
+
+          if (typeof cell.value === "number" && cell.value >= 8) {
+            cell.font = { bold: true };
+          }
+        });
       });
     });
 
     // 📏 AUTO WIDTH
-    worksheet.columns.forEach(column => {
-      column.width = 15;
+    worksheet.columns.forEach(col => {
+      col.width = 15;
     });
 
     // ❄️ FREEZE HEADER
@@ -310,6 +351,7 @@ app.get("/export", async (req, res) => {
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
+
     res.setHeader(
       "Content-Disposition",
       "attachment; filename=Yoga_Scoring.xlsx"
@@ -319,7 +361,7 @@ app.get("/export", async (req, res) => {
     res.end();
 
   } catch (err) {
-    console.error(err);
+    console.error("Export Error:", err);
     res.status(500).json({ message: "Excel export failed" });
   }
 });
@@ -385,30 +427,49 @@ app.get("/students/:group", authMiddleware, async (req, res) => {
 
     const map = {};
 
+    // 🔁 group by student
     data.forEach(entry => {
       const id = entry.studentId;
 
       if (!map[id]) {
         map[id] = {
           studentId: id,
-          totalScore: 0,
+          scores: [],        // 🔥 store all judge scores
           judges: [],
           submitted: 0
         };
       }
 
-      map[id].totalScore += entry.finalTotal;
+      map[id].scores.push(entry.finalTotal);
       map[id].judges.push(entry.judgeId);
       map[id].submitted += 1;
     });
 
-    // convert to array
-    let result = Object.values(map);
+    // 🧠 process each student
+    let result = Object.values(map).map(s => {
+      const sorted = [...s.scores].sort((a, b) => a - b);
 
-    // 🔥 sort by score
+      let filtered = sorted;
+
+      // 🔥 remove lowest & highest
+      if (sorted.length > 2) {
+        filtered = sorted.slice(1, sorted.length - 1);
+      }
+
+      const totalScore = filtered.reduce((sum, v) => sum + v, 0);
+
+      return {
+        studentId: s.studentId,
+        totalScore,
+        judges: s.judges,
+        submitted: s.submitted
+      };
+    });
+
+    // 🔥 sort leaderboard
     result.sort((a, b) => b.totalScore - a.totalScore);
 
-    // 🏆 add rank
+    // 🏆 rank assign
     result = result.map((s, i) => ({
       ...s,
       rank: i + 1
@@ -423,12 +484,19 @@ app.get("/students/:group", authMiddleware, async (req, res) => {
 
 app.post("/logout", (req, res) => {
   res.clearCookie("token", {
-    sameSite: "None",
-    secure: true
+    sameSite: "lax",
+    secure: false
   });
   res.json({ status: "logged out" });
 });
 
+app.post("/admin-logout", (req, res) => {
+  res.clearCookie("admin_token", {
+    sameSite: "lax",
+    secure: false
+  })
+  res.json({status:"looged out"})
+})
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
