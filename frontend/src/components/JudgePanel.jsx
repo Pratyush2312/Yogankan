@@ -22,7 +22,7 @@ const categories = [
 
 const TOTAL_POSES = 5;
 const STUDENTS = 5;
-const grp = ["A", "B", "C", "D", "E", "F", "G", "H","P"]
+const grp = ["A", "B", "C", "D", "E", "F", "G", "H", "P"]
 const emptyScore = categories.reduce((a, c) => ({ ...a, [c.key]: "" }), {});
 
 const JudgePanel = () => {
@@ -119,6 +119,19 @@ const JudgePanel = () => {
 
         if (data.saved?.length > 0 && data.duplicates?.length === 0) {
           toast.success("All students scored! 🎉");
+          setPose(0);
+
+          setScores(
+            Array(TOTAL_POSES).fill().map(() =>
+              Array(studentIds.length).fill().map(() => ({ ...emptyScore }))
+            )
+          );
+
+          setDrops(
+            Array(TOTAL_POSES).fill().map(() =>
+              Array(studentIds.length).fill(false)
+            )
+          );
         }
 
         else if (data.saved?.length > 0 && data.duplicates?.length > 0) {
@@ -216,8 +229,8 @@ const JudgePanel = () => {
                 onClick={prevPose}
                 disabled={pose === 0}
                 className={`px-3 py-2 rounded-lg ${pose === 0
-                    ? "bg-gray-200 text-gray-400"
-                    : "bg-gray-100 hover:bg-gray-200"
+                  ? "bg-gray-200 text-gray-400"
+                  : "bg-gray-100 hover:bg-gray-200"
                   }`}
               >
                 ←
@@ -274,7 +287,7 @@ const JudgePanel = () => {
                 className="border px-3 py-2 rounded-lg w-20 text-center"
               />
 
-            
+
 
             </div>
           ))}
@@ -296,7 +309,7 @@ const JudgePanel = () => {
                   ✖
                 </button>
               )}
-              
+
               {/* HEADER */}
               <div className="flex justify-between items-center mb-3 mt-5">
                 <h3 className="font-semibold text-green-700 text-lg">
